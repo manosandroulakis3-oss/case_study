@@ -79,7 +79,7 @@ def render_logo_retention_table(mrr_subset, customers_subset, title=None):
     st.markdown(
         "<div class='caption'>% of cohort customers still active at key contract milestones. "
         "Drops between M12→M13 reveal first-year renewal rate; M24→M25 the second. "
-        "Cells marked — are right-censored (cohort hasn't had enough observation time).</div>",
+        "Cells marked with a dash are right-censored (cohort hasn't had enough observation time).</div>",
         unsafe_allow_html=True
     )
 
@@ -121,6 +121,53 @@ def render_logo_retention_table(mrr_subset, customers_subset, title=None):
               .format('{:.1f}%', na_rep='—')
               .map(_color))
     st.dataframe(styled, use_container_width=True)
+
+
+def render_text_table(df):
+    """Render a DataFrame as an HTML table with proper text wrapping.
+    Use for tables with long-text cells (st.dataframe truncates instead of wraps)."""
+    html = """
+    <style>
+    table.text-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 8px;
+        margin-bottom: 16px;
+    }
+    table.text-table th {
+        background: #f3f4f6;
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+    table.text-table td {
+        padding: 10px 12px;
+        vertical-align: top;
+        border-bottom: 1px solid #f3f4f6;
+        line-height: 1.5;
+        color: #1f2937;
+    }
+    table.text-table tbody tr:hover { background: #fafafa; }
+    </style>
+    <table class="text-table"><thead><tr>
+    """
+    for c in df.columns:
+        html += f"<th>{c}</th>"
+    html += "</tr></thead><tbody>"
+    for _, row in df.iterrows():
+        html += "<tr>"
+        for c in df.columns:
+            val = str(row[c]).replace('\n', '<br>')
+            html += f"<td>{val}</td>"
+        html += "</tr>"
+    html += "</tbody></table>"
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -310,11 +357,11 @@ with tab_country:
     # Single cohort retention chart — respects whatever's selected in the country filter
     selected_countries = sorted([c for c in mrr_chart_c['country'].unique() if c == c])  # drop NaN
     if len(selected_countries) == 1:
-        retention_title = f'Cohort Retention — {selected_countries[0]}'
+        retention_title = f'Cohort Retention: {selected_countries[0]}'
     elif len(selected_countries) <= 3:
-        retention_title = f'Cohort Retention — {", ".join(map(str, selected_countries))}'
+        retention_title = f'Cohort Retention: {", ".join(map(str, selected_countries))}'
     else:
-        retention_title = f'Cohort Retention — {len(selected_countries)} countries selected'
+        retention_title = f'Cohort Retention: {len(selected_countries)} countries selected'
 
     ret = compute_retention_curve(mrr_chart_c, customers)
     st.plotly_chart(chart_retention_curve(ret, retention_title), use_container_width=True)
@@ -400,7 +447,7 @@ with tab_action:
          'The renewal moment is the largest revenue opportunity in the business. It must become an active sales motion, not a passive billing event.'],
     ], columns=['Section', 'Finding', 'Implication'])
 
-    st.dataframe(summary, use_container_width=True, hide_index=True)
+    render_text_table(summary)
 
 
 # -----------------------------------------------------------------------------
@@ -434,7 +481,7 @@ with tab_notes:
          'Sum of revenue in renewal window (first_span ± 2 months) ÷ Sum of revenue at Month 0',
          'Net revenue retention measured at the renewal moment for cohorts 2021-2023 (mature cohorts only). Above 100% = expansion outweighs churn at renewal.'],
     ], columns=['KPI', 'Formula', 'Interpretation'])
-    st.dataframe(kpi_defs, use_container_width=True, hide_index=True)
+    render_text_table(kpi_defs)
 
     st.markdown("### Why Revenue Retention can go above 100%")
     st.markdown(
@@ -443,16 +490,16 @@ The Revenue Retention curve in the State of Business tab shows values above 100%
 
 **Net Revenue Retention (NRR)** measures *how much money a cohort generates over time*, not *how many customers stayed*. It includes:
 
-- **Retained MRR** — customers who keep paying
-- **Expansion MRR** — customers who upgrade or add products (positive contribution)
-- **Contraction MRR** — customers who downgrade (negative)
-- **Churned MRR** — customers who leave (negative)
+- **Retained MRR**, customers who keep paying
+- **Expansion MRR**, customers who upgrade or add products (positive contribution)
+- **Contraction MRR**, customers who downgrade (negative)
+- **Churned MRR**, customers who leave (negative)
 
-When expansion exceeds churn + contraction, NRR exceeds 100%. This data shows it clearly at Month 12 — many customers renew their annual contract *with an upsell* (more domains, hosting upgrades, WHOIS Privacy add-on), so the cohort's total spend in Month 12 is higher than at acquisition.
+When expansion exceeds churn + contraction, NRR exceeds 100%. This data shows it clearly at Month 12. Many customers renew their annual contract *with an upsell* (more domains, hosting upgrades, WHOIS Privacy add-on), so the cohort's total spend in Month 12 is higher than at acquisition.
 
 This is the standard SaaS metric. Public companies like Snowflake (~140%) and Datadog (~130%) report NRR above 100%. It's how investors evaluate whether a business is growing existing accounts.
 
-**A note on cohort stacking** — yearly cohorts blend customers who joined throughout the year. A March 2021 joiner reaches their personal Month 12 in March 2022; a December 2021 joiner reaches it in December 2022. The Month 12 spike reflects expansion + renewal-with-upsell aggregated across all 12 monthly sub-cohorts. The cross-cohort comparison (2021 vs 2022 vs 2023) remains valid because the same blending applies to every cohort year.
+**A note on cohort stacking.** Yearly cohorts blend customers who joined throughout the year. A March 2021 joiner reaches their personal Month 12 in March 2022; a December 2021 joiner reaches it in December 2022. The Month 12 spike reflects expansion plus renewal-with-upsell aggregated across all 12 monthly sub-cohorts. The cross-cohort comparison (2021 vs 2022 vs 2023) remains valid because the same blending applies to every cohort year.
 
 For a churn-only view bounded at 100%, see the **Customer Retention** table directly above the curve. It tracks the fraction of cohort customers still active, ignoring spend changes.
         """
@@ -467,7 +514,7 @@ For a churn-only view bounded at 100%, see the **Customer Retention** table dire
 
 **Estonia exclusion.** Estonia has only 18 customers in the dataset, too few to draw conclusions from. It is excluded from the Country tab's slicer and KPI table, but counted in the headline KPIs.
 
-**Right-censoring in the Customer Retention table.** Cells are marked "—" when fewer than 80% of the cohort had observation time to potentially reach that milestone. For example, Cohort 2025's Month 24 column shows "—" because most Cohort 2025 customers haven't existed for 24 months yet — the data only runs through April 2026.
+**Right-censoring in the Customer Retention table.** Cells are marked with a dash when fewer than 80% of the cohort had observation time to potentially reach that milestone. For example, Cohort 2025's Month 24 column shows a dash because most Cohort 2025 customers haven't existed for 24 months yet; the data only runs through April 2026.
 
 **NRR at Expiry, mature-cohort only.** The headline NRR at Expiry KPI uses cohorts 2021-2023 only, where customers have had at least one chance to reach their renewal window. Younger cohorts are excluded to avoid skew from incomplete observation. Segment-level NRR tables use all cohorts.
 
