@@ -112,8 +112,10 @@
     background: white;
     border: 1px solid #E5E7EB;
     border-radius: 6px;
-    padding: 12px 12px 20px 12px;
-    overflow: visible;
+    padding: 12px 12px 28px 12px;
+    box-sizing: border-box;
+    overflow: hidden;
+    margin-bottom: 8px;
 }
 
 /* === DataFrames styled === */
