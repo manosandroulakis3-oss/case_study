@@ -296,24 +296,24 @@ tab_state, tab_depth, tab_country, tab_product, tab_contract, tab_action, tab_no
 # -----------------------------------------------------------------------------
 with tab_state:
     # Headline chart full-width
-    st.plotly_chart(chart_mrr_over_time(mrr_chart), use_container_width=True)
+    st.plotly_chart(chart_mrr_over_time(mrr_chart), use_container_width=True, key='c_mrr_overall')
 
     # ARPU + NRR side by side
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(chart_arpu_over_time(mrr_chart), use_container_width=True)
+        st.plotly_chart(chart_arpu_over_time(mrr_chart), use_container_width=True, key='c_arpu')
     with c2:
-        st.plotly_chart(chart_nrr_over_time(mrr_chart), use_container_width=True)
+        st.plotly_chart(chart_nrr_over_time(mrr_chart), use_container_width=True, key='c_nrr')
 
     # MRR movement gets its own row — bars need horizontal space
-    st.plotly_chart(chart_mrr_movement(mrr_chart), use_container_width=True)
+    st.plotly_chart(chart_mrr_movement(mrr_chart), use_container_width=True, key='c_mrr_movement')
 
     # Cohort retention — table first (milestones), then curve (full shape)
     render_logo_retention_table(mrr_chart, customers)
 
     # Revenue retention curve — full shape, includes the M12 expansion spike
     ret = compute_retention_curve(mrr_chart, customers)
-    st.plotly_chart(chart_retention_curve(ret), use_container_width=True)
+    st.plotly_chart(chart_retention_curve(ret), use_container_width=True, key='c_retention_overall')
 
 
 # -----------------------------------------------------------------------------
@@ -326,7 +326,7 @@ with tab_depth:
     st.dataframe(table, use_container_width=True, hide_index=True)
 
     st.plotly_chart(chart_mrr_by_dimension(mrr_chart, 'platform_depth',
-                    'MRR by Platform Depth'), use_container_width=True)
+                    'MRR by Platform Depth'), use_container_width=True, key='c_mrr_depth')
 
     # Retention table covering all customers in the current filter
     render_logo_retention_table(mrr_chart, customers)
@@ -349,7 +349,7 @@ with tab_country:
     st.dataframe(table, use_container_width=True, hide_index=True)
 
     st.plotly_chart(chart_mrr_by_dimension(mrr_chart_c, 'country', 'MRR by Country'),
-                    use_container_width=True)
+                    use_container_width=True, key='c_mrr_country')
 
     # Retention table — for selected countries (Estonia excluded)
     render_logo_retention_table(mrr_chart_c, customers)
@@ -364,7 +364,7 @@ with tab_country:
         retention_title = f'Cohort Retention: {len(selected_countries)} countries selected'
 
     ret = compute_retention_curve(mrr_chart_c, customers)
-    st.plotly_chart(chart_retention_curve(ret, retention_title), use_container_width=True)
+    st.plotly_chart(chart_retention_curve(ret, retention_title), use_container_width=True, key='c_retention_country')
 
 
 # -----------------------------------------------------------------------------
@@ -377,7 +377,7 @@ with tab_product:
     st.dataframe(table, use_container_width=True, hide_index=True)
 
     st.plotly_chart(chart_mrr_by_dimension(mrr_chart, 'product_group', 'MRR by Product Group'),
-                    use_container_width=True)
+                    use_container_width=True, key='c_mrr_product')
 
     # Retention table for current filter
     render_logo_retention_table(mrr_chart, customers)
@@ -395,7 +395,7 @@ with tab_contract:
     # MRR by contract length full-width
     st.plotly_chart(
         chart_mrr_by_dimension(mrr_chart, 'subscription_type', 'MRR by Contract Length'),
-        use_container_width=True
+        use_container_width=True, key='c_mrr_contract'
     )
 
     # Retention table — for whatever's selected in the filter
@@ -404,7 +404,7 @@ with tab_contract:
     # Sankey on its own row — needs full width
     st.markdown("<div class='section-header'>Where Customers Go at Renewal</div>",
                 unsafe_allow_html=True)
-    st.plotly_chart(chart_renewal_sankey(inv_f), use_container_width=True)
+    st.plotly_chart(chart_renewal_sankey(inv_f), use_container_width=True, key='c_sankey')
 
 
 # -----------------------------------------------------------------------------
