@@ -126,9 +126,7 @@ def chart_nrr_over_time(mrr):
 
     NRR_COLOR = '#E67E22'  # amber/orange — matches the notebook's NRR chart
     fig = go.Figure()
-    fig.add_hline(y=100, line_dash='dash', line_color=MUTED, opacity=0.5,
-                  annotation_text='100% breakeven', annotation_position='right',
-                  annotation_font_color=MUTED, annotation_font_size=10)
+    fig.add_hline(y=100, line_dash='dash', line_color=MUTED, opacity=0.5)
     fig.add_trace(go.Scatter(x=nrr_series.index, y=nrr_series.values,
                              mode='lines', name='Monthly NRR',
                              line=dict(color=NRR_COLOR, width=1, dash='dot'),
@@ -144,9 +142,7 @@ def chart_nrr_over_time(mrr):
 
 def chart_retention_curve(retention_df, title='Revenue Retention by Acquisition Cohort'):
     fig = go.Figure()
-    fig.add_hline(y=100, line_dash='dash', line_color=MUTED, opacity=0.4,
-                  annotation_text='100% baseline', annotation_position='right',
-                  annotation_font_color=MUTED, annotation_font_size=10)
+    fig.add_hline(y=100, line_dash='dash', line_color=MUTED, opacity=0.4)
     if len(retention_df) == 0:
         fig.update_layout(**base_layout(title=title, height=380))
         return fig
