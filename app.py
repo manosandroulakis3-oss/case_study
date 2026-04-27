@@ -1,5 +1,5 @@
 """
-team.blue Cohort Analysis — Streamlit Dashboard
+Case Study Cohort Analysis — Streamlit Dashboard
 Built to mirror the strategic report. BI-tool styling.
 """
 import streamlit as st
@@ -233,13 +233,14 @@ st.markdown("<br>", unsafe_allow_html=True)
 # =============================================================================
 # Tabs
 # =============================================================================
-tab_state, tab_depth, tab_country, tab_product, tab_contract, tab_action = st.tabs([
+tab_state, tab_depth, tab_country, tab_product, tab_contract, tab_action, tab_notes = st.tabs([
     "📈 State of Business",
     "🔢 Platform Depth",
     "🌍 Country",
     "📦 Product",
     "📅 Contract Length",
     "🎯 Action Plan",
+    "📖 Notes",
 ])
 
 
@@ -400,3 +401,89 @@ with tab_action:
     ], columns=['Section', 'Finding', 'Implication'])
 
     st.dataframe(summary, use_container_width=True, hide_index=True)
+
+
+# -----------------------------------------------------------------------------
+# Tab 7 — Notes
+# -----------------------------------------------------------------------------
+with tab_notes:
+    st.markdown("### KPI Definitions")
+    st.markdown(
+        "<div class='caption'>Each KPI shown in the headline strip and segment tables, "
+        "with formula and interpretation.</div>",
+        unsafe_allow_html=True
+    )
+
+    kpi_defs = pd.DataFrame([
+        ['Customers',
+         'Count of unique customer IDs in the filtered dataset',
+         'How many customers are reflected in the current view. Filtering by product narrows this to customers who bought in that segment.'],
+        ['Avg MRR / Month',
+         'Mean of monthly MRR totals, year-weighted across 2021-2025',
+         'Recurring revenue earning power. Computed as the average of yearly means rather than a flat average to avoid bias from cohort growth.'],
+        ['ARPU',
+         'Average revenue per user per month, year-weighted across 2021-2025',
+         'How much each active customer contributes per month on average. Same year-weighting as Avg MRR.'],
+        ['Renewal Rate',
+         '% of customers who ever repurchased the same product after first month',
+         'Logo-level retention signal: did this customer come back, regardless of spend? Uses the customer_ever_renewed flag built in the data prep.'],
+        ['Avg LTV',
+         'Total revenue ÷ unique customers',
+         'Lifetime value to date. Includes all revenue across full observation window.'],
+        ['NRR at Expiry',
+         'Sum of revenue in renewal window (first_span ± 2 months) ÷ Sum of revenue at Month 0',
+         'Net revenue retention measured at the renewal moment for cohorts 2021-2023 (mature cohorts only). Above 100% = expansion outweighs churn at renewal.'],
+    ], columns=['KPI', 'Formula', 'Interpretation'])
+    st.dataframe(kpi_defs, use_container_width=True, hide_index=True)
+
+    st.markdown("### Why Revenue Retention can go above 100%")
+    st.markdown(
+        """
+The Revenue Retention curve in the State of Business tab shows values above 100% for some cohorts, especially around Months 12 and 24. This is **expected and meaningful**, not a bug.
+
+**Net Revenue Retention (NRR)** measures *how much money a cohort generates over time*, not *how many customers stayed*. It includes:
+
+- **Retained MRR** — customers who keep paying
+- **Expansion MRR** — customers who upgrade or add products (positive contribution)
+- **Contraction MRR** — customers who downgrade (negative)
+- **Churned MRR** — customers who leave (negative)
+
+When expansion exceeds churn + contraction, NRR exceeds 100%. This data shows it clearly at Month 12 — many customers renew their annual contract *with an upsell* (more domains, hosting upgrades, WHOIS Privacy add-on), so the cohort's total spend in Month 12 is higher than at acquisition.
+
+This is the standard SaaS metric. Public companies like Snowflake (~140%) and Datadog (~130%) report NRR above 100%. It's how investors evaluate whether a business is growing existing accounts.
+
+**A note on cohort stacking** — yearly cohorts blend customers who joined throughout the year. A March 2021 joiner reaches their personal Month 12 in March 2022; a December 2021 joiner reaches it in December 2022. The Month 12 spike reflects expansion + renewal-with-upsell aggregated across all 12 monthly sub-cohorts. The cross-cohort comparison (2021 vs 2022 vs 2023) remains valid because the same blending applies to every cohort year.
+
+For a churn-only view bounded at 100%, see the **Customer Retention** table directly above the curve. It tracks the fraction of cohort customers still active, ignoring spend changes.
+        """
+    )
+
+    st.markdown("### Method Notes")
+    st.markdown(
+        """
+**Customer count by filter.** The Customers KPI is derived from the filtered invoices table. This way, filtering by Product Group narrows the count to customers who bought in that group. Customer-level filters (Country, Cohort, Platform Depth, Contract Length) work directly on the customers table.
+
+**Cohort assignment.** A customer's cohort_year is the year of their first invoice (cohort_month). This is fixed per customer, regardless of subsequent activity.
+
+**Estonia exclusion.** Estonia has only 18 customers in the dataset, too few to draw conclusions from. It is excluded from the Country tab's slicer and KPI table, but counted in the headline KPIs.
+
+**Right-censoring in the Customer Retention table.** Cells are marked "—" when fewer than 80% of the cohort had observation time to potentially reach that milestone. For example, Cohort 2025's Month 24 column shows "—" because most Cohort 2025 customers haven't existed for 24 months yet — the data only runs through April 2026.
+
+**NRR at Expiry, mature-cohort only.** The headline NRR at Expiry KPI uses cohorts 2021-2023 only, where customers have had at least one chance to reach their renewal window. Younger cohorts are excluded to avoid skew from incomplete observation. Segment-level NRR tables use all cohorts.
+
+**Year-weighted vs flat means.** The headline Avg MRR and ARPU use year-weighted means (mean of yearly means across 2021-2025). Segment-level KPI tables use flat means of monthly totals, matching the strategic report's definition.
+        """
+    )
+
+    st.markdown("### Data")
+    st.markdown(
+        """
+**Source.** The dashboard reads from three Parquet files: customers (one row per customer with cohort and segment attributes), invoices (one row per billing event), and MRR (one row per customer-product-month).
+
+**Date range.** Data spans March 2019 through April 2026. The full range is used for KPI calculations to match the strategic report's definitions. Time-series charts visually start at January 2021 for clarity.
+
+**Customer count.** 70,938 unique customers across 12 European markets.
+
+**Filtered counts may differ slightly from notebook tables** by single digits (under 0.02%) due to edge cases in segment derivation (e.g., customers who shifted between platform depths over time).
+        """
+    )
