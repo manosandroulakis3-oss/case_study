@@ -188,8 +188,7 @@ st.sidebar.caption("All charts and KPIs respond to these.")
 def _clear_filters():
     for k in ('flt_country', 'flt_cohort', 'flt_pgroup', 'flt_psub',
              'flt_clen', 'flt_pdepth'):
-        if k in st.session_state:
-            del st.session_state[k]
+        st.session_state[k] = []
 
 
 st.sidebar.button(
