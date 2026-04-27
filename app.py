@@ -78,8 +78,7 @@ def render_logo_retention_table(mrr_subset, customers_subset, title=None):
     )
     st.markdown(
         "<div class='caption'>% of cohort customers still active at key contract milestones. "
-        "Drops between M12→M13 reveal first-year renewal rate; M24→M25 the second. "
-        "Cells marked with a dash are right-censored (cohort hasn't had enough observation time).</div>",
+        "Drops between M12→M13 reveal first-year renewal rate; M24→M25 the second. ",
         unsafe_allow_html=True
     )
 
