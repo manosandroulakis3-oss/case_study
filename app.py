@@ -20,7 +20,7 @@ from charts import (
 # Page config & styling
 # =============================================================================
 st.set_page_config(
-    page_title="team.blue | Cohort Analysis",
+    page_title="Case Study | Cohort Analysis",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -202,7 +202,7 @@ mrr_chart = mrr_f[mrr_f['mrr_month'] >= pd.Timestamp('2021-01-01')]
 # =============================================================================
 # Header
 # =============================================================================
-st.markdown("<h1 class='dashboard-title'>team.blue · Cohort Analysis</h1>",
+st.markdown("<h1 class='dashboard-title'>Case Study · Cohort Analysis</h1>",
             unsafe_allow_html=True)
 st.markdown(f"<div class='dashboard-subtitle'>"
             f"{len(customers):,} customers · 12 European markets · Jan 2021 – Apr 2026"
