@@ -183,27 +183,41 @@ with st.spinner('Loading data…'):
 st.sidebar.markdown("### 🔍 Filters")
 st.sidebar.caption("All charts and KPIs respond to these.")
 
+
+# Clear-all-filters button
+def _clear_filters():
+    for k in ('flt_country', 'flt_cohort', 'flt_pgroup', 'flt_psub',
+             'flt_clen', 'flt_pdepth'):
+        if k in st.session_state:
+            del st.session_state[k]
+
+
+st.sidebar.button(
+    "Clear all filters", on_click=_clear_filters,
+    use_container_width=True, type="secondary",
+)
+
 date_range = None  # Date range filter removed — full data range is always used
 
 _country_options = [c for c in sorted(customers['country'].unique()) if c != 'Estonia']
 countries = st.sidebar.multiselect(
     "Country", _country_options,
-    default=None, placeholder="All countries",
+    default=None, placeholder="All countries", key='flt_country',
 )
 
 cohorts = st.sidebar.multiselect(
     "Acquisition cohort", sorted(customers['cohort_year'].unique()),
-    default=None, placeholder="All cohorts",
+    default=None, placeholder="All cohorts", key='flt_cohort',
 )
 
 product_groups = st.sidebar.multiselect(
     "Product group", sorted(invoices['product_group'].unique()),
-    default=None, placeholder="All groups",
+    default=None, placeholder="All groups", key='flt_pgroup',
 )
 
 product_subgroups = st.sidebar.multiselect(
     "Product subgroup", sorted(invoices['product_subgroup'].unique()),
-    default=None, placeholder="All subgroups",
+    default=None, placeholder="All subgroups", key='flt_psub',
 )
 
 _sub_order = ['1 months', '12 months', '24 months', '60 months', '120 months', 'Other']
@@ -211,12 +225,12 @@ _sub_available = [s for s in _sub_order if s in customers['subscription_type'].u
 contract_lengths = st.sidebar.multiselect(
     "Contract length",
     _sub_available,
-    default=None, placeholder="All lengths",
+    default=None, placeholder="All lengths", key='flt_clen',
 )
 
 platform_depths = st.sidebar.multiselect(
     "Platform depth", sorted(customers['platform_depth'].unique()),
-    default=None, placeholder="All depths",
+    default=None, placeholder="All depths", key='flt_pdepth',
 )
 
 st.sidebar.markdown("---")
