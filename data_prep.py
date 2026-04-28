@@ -559,3 +559,74 @@ def compute_logo_retention_curve(mrr, customers=None, group_col=None, group_valu
     mature_df = pd.DataFrame(mature_records)
     agg = agg.merge(mature_df, on=['cohort_year', 'months_since'], how='left')
     return agg
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=20)
+def compute_logo_retention_monthly(mrr, customers=None, max_months=36, start_year=2021):
+    """% of cohort customers still active at each month-since-acquisition,
+    bucketed by *monthly* acquisition cohort (instead of yearly).
+
+    Returns a DataFrame with:
+      cohort_ym     : 'YYYY-MM' string (e.g. '2021-03')
+      n_t0          : customers in the cohort at M0
+      months_avail  : months of observation available for this cohort
+      m0..mN        : retention % at each month (NaN if right-censored)
+    """
+    df = mrr.copy()
+    if len(df) == 0:
+        return pd.DataFrame()
+
+    df['mrr_month'] = pd.to_datetime(df['mrr_month'])
+
+    first_mrr = (df.groupby('customer_id')['mrr_month']
+                   .min().rename('first_mrr_month'))
+    df = df.merge(first_mrr, on='customer_id')
+
+    df['period_num'] = (
+        df['mrr_month'].dt.to_period('M') -
+        df['first_mrr_month'].dt.to_period('M')
+    ).apply(lambda x: x.n)
+    df['cohort_ym']   = df['first_mrr_month'].dt.to_period('M').astype(str)
+    df['cohort_year'] = df['first_mrr_month'].dt.year
+
+    df = df[df['cohort_year'] >= start_year]
+    df = df[(df['period_num'] >= 0) & (df['period_num'] <= max_months)]
+
+    if len(df) == 0:
+        return pd.DataFrame()
+
+    data_max = df['mrr_month'].max()
+    data_max_period = data_max.to_period('M')
+
+    # M0 customer count per monthly cohort
+    m0 = (df[df['period_num'] == 0]
+              .groupby('cohort_ym')['customer_id']
+              .nunique()
+              .rename('n_t0'))
+
+    counts = (df.groupby(['cohort_ym', 'period_num'], observed=True)['customer_id']
+                 .nunique()
+                 .reset_index(name='n_active'))
+    counts = counts.merge(m0, on='cohort_ym')
+    counts['pct'] = counts['n_active'] / counts['n_t0'] * 100
+
+    pivot = counts.pivot(index='cohort_ym', columns='period_num', values='pct')
+    pivot = pivot.sort_index()
+
+    # Months of observation available per cohort
+    cohort_periods = pd.PeriodIndex(pivot.index, freq='M')
+    months_avail = pd.Series(
+        (data_max_period - cohort_periods).map(lambda x: x.n),
+        index=pivot.index, name='months_avail'
+    )
+
+    # Right-censor: blank cells where cohort hasn't reached that period yet
+    for p in pivot.columns:
+        mask = months_avail < p
+        pivot.loc[mask, p] = pd.NA
+
+    out = pivot.copy()
+    out.insert(0, 'n_t0', m0)
+    out.insert(1, 'months_avail', months_avail)
+    out = out.reset_index()
+    return out
