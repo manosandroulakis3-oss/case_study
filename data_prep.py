@@ -578,6 +578,24 @@ def compute_logo_retention_monthly(mrr, customers=None, max_months=36, start_yea
 
     df['mrr_month'] = pd.to_datetime(df['mrr_month'])
 
+    # Get cohort_month from customers (or from MRR if already present)
+    # Use the same source as the sidebar filter — invoice-based cohort_month
+    if 'cohort_month' not in df.columns:
+        if customers is not None and 'cohort_month' in customers.columns:
+            cohort_lookup = (customers[['customer_id', 'cohort_month']]
+                             .drop_duplicates('customer_id'))
+            df = df.merge(cohort_lookup, on='customer_id', how='left')
+        else:
+            # Fallback: derive from first MRR month
+            first_month = df.groupby('customer_id')['mrr_month'].min().rename('cohort_month')
+            df = df.merge(first_month, on='customer_id', how='left')
+    df = df.dropna(subset=['cohort_month'])
+    df['cohort_month'] = pd.to_datetime(df['cohort_month'])
+
+    if 'cohort_year' not in df.columns:
+        df['cohort_year'] = df['cohort_month'].dt.year
+
+    # Each customer's personal M0 = their first MRR month (period axis only)
     first_mrr = (df.groupby('customer_id')['mrr_month']
                    .min().rename('first_mrr_month'))
     df = df.merge(first_mrr, on='customer_id')
@@ -586,8 +604,9 @@ def compute_logo_retention_monthly(mrr, customers=None, max_months=36, start_yea
         df['mrr_month'].dt.to_period('M') -
         df['first_mrr_month'].dt.to_period('M')
     ).apply(lambda x: x.n)
-    df['cohort_ym']   = df['first_mrr_month'].dt.to_period('M').astype(str)
-    df['cohort_year'] = df['first_mrr_month'].dt.year
+
+    # Monthly sub-cohort label uses cohort_month (matches sidebar filter source)
+    df['cohort_ym']   = df['cohort_month'].dt.to_period('M').astype(str)
 
     df = df[df['cohort_year'] >= start_year]
     df = df[(df['period_num'] >= 0) & (df['period_num'] <= max_months)]
