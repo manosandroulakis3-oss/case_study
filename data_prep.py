@@ -395,7 +395,84 @@ def compute_retention_curve(mrr, customers=None, group_col=None, group_value=Non
 
 
 @st.cache_data(ttl=3600, show_spinner=False, max_entries=20)
-def compute_logo_retention_curve(mrr, customers=None, group_col=None, group_value=None):
+def compute_nrr_cohort_curve_clean(mrr, customers=None, max_months=36,
+                                    maturity_threshold=0.80):
+    """Stacking-corrected NRR (Net Revenue Retention) by acquisition cohort year.
+
+    Computes NRR per *monthly* sub-cohort (so each curve hits its M12 cleanly),
+    then averages within each year weighted by sub-cohort M0 MRR.
+    Removes the yearly-cohort blending artifact where customers joining
+    different months of the same year contribute to the same period_num
+    despite being at different lifecycle stages.
+
+    Right-censoring: months where <maturity_threshold of the year's
+    sub-cohorts have enough observation time are excluded.
+    """
+    df = mrr.copy()
+    if len(df) == 0:
+        return pd.DataFrame()
+
+    df['mrr_month'] = pd.to_datetime(df['mrr_month'])
+
+    # Each customer's personal M0 = their first MRR month
+    first_mrr = (df.groupby('customer_id')['mrr_month']
+                   .min().rename('first_mrr_month'))
+    df = df.merge(first_mrr, on='customer_id')
+
+    df['period_num'] = (
+        df['mrr_month'].dt.to_period('M') -
+        df['first_mrr_month'].dt.to_period('M')
+    ).apply(lambda x: x.n)
+    df['cohort_year'] = df['first_mrr_month'].dt.year
+    df['cohort_ym']   = df['first_mrr_month'].dt.to_period('M').astype(str)
+
+    df = df[df['cohort_year'].between(2021, 2025)]
+    df = df[(df['period_num'] >= 0) & (df['period_num'] <= max_months)]
+
+    # MRR per (monthly cohort, period_num)
+    sub = (df.groupby(['cohort_ym', 'cohort_year', 'period_num'], observed=True)['mrr']
+             .sum().reset_index())
+
+    # M0 MRR per monthly cohort (denominator)
+    m0 = (sub[sub['period_num'] == 0][['cohort_ym', 'mrr']]
+              .rename(columns={'mrr': 'mrr_m0'}))
+    sub = sub.merge(m0, on='cohort_ym')
+    sub = sub[sub['mrr_m0'] > 0]
+    if len(sub) == 0:
+        return pd.DataFrame()
+
+    sub['nrr'] = sub['mrr'] / sub['mrr_m0'] * 100
+
+    # Aggregate to yearly cohort weighted by sub-cohort M0 MRR
+    def _weighted_mean(g):
+        return (g['nrr'] * g['mrr_m0']).sum() / g['mrr_m0'].sum()
+
+    yearly = (sub.groupby(['cohort_year', 'period_num'], observed=True)
+                 .apply(_weighted_mean)
+                 .reset_index(name='pct_retained'))
+
+    # Right-censoring per yearly cohort
+    data_max = df['mrr_month'].max()
+    sub_starts = sub[['cohort_ym', 'cohort_year']].drop_duplicates()
+    sub_starts['start_period'] = pd.PeriodIndex(sub_starts['cohort_ym'], freq='M')
+    data_max_period = data_max.to_period('M')
+    sub_starts['months_avail'] = (data_max_period - sub_starts['start_period']).apply(lambda x: x.n)
+
+    def _maturity(year, period):
+        starts = sub_starts[sub_starts['cohort_year'] == year]
+        if len(starts) == 0:
+            return 0
+        return (starts['months_avail'] >= period).mean()
+
+    yearly['mature_pct'] = yearly.apply(
+        lambda r: _maturity(r['cohort_year'], r['period_num']), axis=1)
+    yearly = yearly[yearly['mature_pct'] >= maturity_threshold]
+
+    return yearly[['cohort_year', 'period_num', 'pct_retained']].rename(
+        columns={'period_num': 'months_since'})
+
+
+
     """% of cohort customers still active at each month-since-acquisition.
     Bounded at 100%. Each customer counts as 1.
 

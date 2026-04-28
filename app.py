@@ -8,7 +8,8 @@ from pathlib import Path
 
 from data_prep import (
     load_all_data, apply_filters, compute_kpis,
-    compute_kpi_table, compute_retention_curve, compute_logo_retention_curve
+    compute_kpi_table, compute_retention_curve, compute_logo_retention_curve,
+    compute_nrr_cohort_curve_clean,
 )
 from charts import (
     chart_mrr_over_time, chart_arpu_over_time, chart_nrr_over_time,
@@ -78,7 +79,8 @@ def render_logo_retention_table(mrr_subset, customers_subset, title=None):
     )
     st.markdown(
         "<div class='caption'>% of cohort customers still active at key contract milestones. "
-        "Drops between M12→M13 reveal first-year renewal rate; M24→M25 the second. ",
+        "Drops between M12→M13 reveal first-year renewal rate; M24→M25 the second. "
+        "Cells marked with a dash are right-censored (cohort hasn't had enough observation time).</div>",
         unsafe_allow_html=True
     )
 
@@ -310,9 +312,12 @@ with tab_state:
     # Cohort retention — table first (milestones), then curve (full shape)
     render_logo_retention_table(mrr_chart, customers)
 
-    # Revenue retention curve — full shape, includes the M12 expansion spike
-    ret = compute_retention_curve(mrr_chart, customers)
-    st.plotly_chart(chart_retention_curve(ret), use_container_width=True, key='c_retention_overall')
+    # NRR cohort curve — stacking-corrected (monthly sub-cohorts averaged within year)
+    ret = compute_nrr_cohort_curve_clean(mrr_chart)
+    st.plotly_chart(
+        chart_retention_curve(ret, title='NRR (Net Revenue Retention) by acquisition cohort year'),
+        use_container_width=True, key='c_retention_overall'
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -353,17 +358,18 @@ with tab_country:
     # Retention table — for selected countries (Estonia excluded)
     render_logo_retention_table(mrr_chart_c, customers)
 
-    # Single cohort retention chart — respects whatever's selected in the country filter
-    selected_countries = sorted([c for c in mrr_chart_c['country'].unique() if c == c])  # drop NaN
+    # NRR cohort curve — stacking-corrected
+    selected_countries = sorted([c for c in mrr_chart_c['country'].unique() if c == c])
     if len(selected_countries) == 1:
-        retention_title = f'Cohort Retention: {selected_countries[0]}'
+        retention_title = f'NRR by Cohort: {selected_countries[0]}'
     elif len(selected_countries) <= 3:
-        retention_title = f'Cohort Retention: {", ".join(map(str, selected_countries))}'
+        retention_title = f'NRR by Cohort: {", ".join(map(str, selected_countries))}'
     else:
-        retention_title = f'Cohort Retention: {len(selected_countries)} countries selected'
+        retention_title = f'NRR by Cohort: {len(selected_countries)} countries selected'
 
-    ret = compute_retention_curve(mrr_chart_c, customers)
-    st.plotly_chart(chart_retention_curve(ret, retention_title), use_container_width=True, key='c_retention_country')
+    ret = compute_nrr_cohort_curve_clean(mrr_chart_c)
+    st.plotly_chart(chart_retention_curve(ret, retention_title),
+                    use_container_width=True, key='c_retention_country')
 
 
 # -----------------------------------------------------------------------------
@@ -482,10 +488,10 @@ with tab_notes:
     ], columns=['KPI', 'Formula', 'Interpretation'])
     render_text_table(kpi_defs)
 
-    st.markdown("### Why Revenue Retention can go above 100%")
+    st.markdown("### Why NRR can go above 100%")
     st.markdown(
         """
-The Revenue Retention curve in the State of Business tab shows values above 100% for some cohorts, especially around Months 12 and 24. This is **expected and meaningful**, not a bug.
+The NRR curve in the State of Business and Country tabs shows values above 100% at the M12 and M24 renewal moments. This is **expected and meaningful**, not a bug.
 
 **Net Revenue Retention (NRR)** measures *how much money a cohort generates over time*, not *how many customers stayed*. It includes:
 
@@ -498,7 +504,7 @@ When expansion exceeds churn + contraction, NRR exceeds 100%. This data shows it
 
 This is the standard SaaS metric. Public companies like Snowflake (~140%) and Datadog (~130%) report NRR above 100%. It's how investors evaluate whether a business is growing existing accounts.
 
-**A note on cohort stacking.** Yearly cohorts blend customers who joined throughout the year. A March 2021 joiner reaches their personal Month 12 in March 2022; a December 2021 joiner reaches it in December 2022. The Month 12 spike reflects expansion plus renewal-with-upsell aggregated across all 12 monthly sub-cohorts. The cross-cohort comparison (2021 vs 2022 vs 2023) remains valid because the same blending applies to every cohort year.
+**Stacking-corrected calculation.** A naïve yearly-cohort NRR can over-state the M12 spike because customers who joined in different months of the same year contribute MRR at different lifecycle stages (a January 2021 joiner reaches their personal M12 in January 2022; a December 2021 joiner reaches it in December 2022). To remove this artifact, NRR is computed per *monthly* sub-cohort first, then averaged within each year weighted by sub-cohort M0 MRR. Each monthly sub-cohort hits its M12 cleanly, so the year-level curve reflects genuine renewal-with-upsell rather than calendar blending.
 
 For a churn-only view bounded at 100%, see the **Customer Retention** table directly above the curve. It tracks the fraction of cohort customers still active, ignoring spend changes.
         """
