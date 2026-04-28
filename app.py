@@ -609,39 +609,5 @@ The NRR curve in the State of Business and Country tabs shows values above 100% 
 When expansion exceeds churn + contraction, NRR exceeds 100%. This data shows it clearly at Month 12. Many customers renew their annual contract *with an upsell* (more domains, hosting upgrades, WHOIS Privacy add-on), so the cohort's total spend in Month 12 is higher than at acquisition.
 
 This is the standard SaaS metric. Public companies like Snowflake (~140%) and Datadog (~130%) report NRR above 100%. It's how investors evaluate whether a business is growing existing accounts.
-
-**Stacking-corrected calculation.** A naïve yearly-cohort NRR can over-state the M12 spike because customers who joined in different months of the same year contribute MRR at different lifecycle stages (a January 2021 joiner reaches their personal M12 in January 2022; a December 2021 joiner reaches it in December 2022). To remove this artifact, NRR is computed per *monthly* sub-cohort first, then averaged within each year weighted by sub-cohort M0 MRR. Each monthly sub-cohort hits its M12 cleanly, so the year-level curve reflects genuine renewal-with-upsell rather than calendar blending.
-
-For a churn-only view bounded at 100%, see the **Customer Retention** table directly above the curve. It tracks the fraction of cohort customers still active, ignoring spend changes.
-        """
-    )
-
-    st.markdown("### Method Notes")
-    st.markdown(
-        """
-**Customer count by filter.** The Customers KPI is derived from the filtered invoices table. This way, filtering by Product Group narrows the count to customers who bought in that group. Customer-level filters (Country, Cohort, Platform Depth, Contract Length) work directly on the customers table.
-
-**Cohort assignment.** A customer's cohort_year is the year of their first invoice (cohort_month). This is fixed per customer, regardless of subsequent activity.
-
-**Estonia exclusion.** Estonia has only 18 customers in the dataset, too few to draw conclusions from. It is excluded from the Country tab's slicer and KPI table, but counted in the headline KPIs.
-
-**Right-censoring in the Customer Retention table.** Cells are marked with a dash when fewer than 80% of the cohort had observation time to potentially reach that milestone. For example, Cohort 2025's Month 24 column shows a dash because most Cohort 2025 customers haven't existed for 24 months yet; the data only runs through April 2026.
-
-**NRR at Expiry, mature-cohort only.** The headline NRR at Expiry KPI uses cohorts 2021-2023 only, where customers have had at least one chance to reach their renewal window. Younger cohorts are excluded to avoid skew from incomplete observation. Segment-level NRR tables use all cohorts.
-
-**Year-weighted vs flat means.** The headline Avg MRR and ARPU use year-weighted means (mean of yearly means across 2021-2025). Segment-level KPI tables use flat means of monthly totals, matching the strategic report's definition.
-        """
-    )
-
-    st.markdown("### Data")
-    st.markdown(
-        """
-**Source.** The dashboard reads from three Parquet files: customers (one row per customer with cohort and segment attributes), invoices (one row per billing event), and MRR (one row per customer-product-month).
-
-**Date range.** Data spans March 2019 through April 2026. The full range is used for KPI calculations to match the strategic report's definitions. Time-series charts visually start at January 2021 for clarity.
-
-**Customer count.** 70,938 unique customers across 12 European markets.
-
-**Filtered counts may differ slightly from notebook tables** by single digits (under 0.02%) due to edge cases in segment derivation (e.g., customers who shifted between platform depths over time).
         """
     )
