@@ -407,10 +407,11 @@ def compute_retention_curve(mrr, customers=None, group_col=None, group_value=Non
     df = df.dropna(subset=['cohort_month'])
     df['cohort_month'] = pd.to_datetime(df['cohort_month'])
 
-    # Use to_period('M') arithmetic — matches the notebook
+    # Vectorized month difference (much faster than .apply on Period arithmetic)
     df['months_since'] = (
-        df['mrr_month'].dt.to_period('M') - df['cohort_month'].dt.to_period('M')
-    ).apply(lambda x: x.n)
+        (df['mrr_month'].dt.year - df['cohort_month'].dt.year) * 12 +
+        (df['mrr_month'].dt.month - df['cohort_month'].dt.month)
+    )
 
     df = df[df['months_since'] >= 0]  # drop any pre-cohort rows
     df = df[df['months_since'] <= 36]  # cap at 36 months like the notebook
@@ -451,14 +452,17 @@ def compute_nrr_cohort_curve_clean(mrr, customers=None, max_months=36,
     df = df.merge(anchors, on='customer_id', how='left')
     df = df.dropna(subset=['cohort_month', 'first_mrr_month'])
 
+    # Vectorized month difference
     df['period_num'] = (
-        df['mrr_month'].dt.to_period('M') -
-        df['first_mrr_month'].dt.to_period('M')
-    ).apply(lambda x: x.n)
+        (df['mrr_month'].dt.year - df['first_mrr_month'].dt.year) * 12 +
+        (df['mrr_month'].dt.month - df['first_mrr_month'].dt.month)
+    )
 
-    # Monthly sub-cohort label uses cohort_month (so 2022-01 cohort customers
-    # never end up in 2021-12 sub-cohort due to MRR-vs-invoice timing mismatch)
-    df['cohort_ym'] = df['cohort_month'].dt.to_period('M').astype(str)
+    # Vectorized YYYY-MM string (faster than to_period().astype(str))
+    df['cohort_ym'] = (
+        df['cohort_month'].dt.year.astype(str) + '-' +
+        df['cohort_month'].dt.month.astype(str).str.zfill(2)
+    )
 
     df = df[df['cohort_year'].between(2021, 2025)]
     df = df[(df['period_num'] >= 0) & (df['period_num'] <= max_months)]
@@ -538,8 +542,9 @@ def compute_logo_retention_curve(mrr, customers=None, group_col=None, group_valu
     df = df.dropna(subset=['first_mrr_month'])
 
     df['months_since'] = (
-        df['mrr_month'].dt.to_period('M') - df['first_mrr_month'].dt.to_period('M')
-    ).apply(lambda x: x.n)
+        (df['mrr_month'].dt.year - df['first_mrr_month'].dt.year) * 12 +
+        (df['mrr_month'].dt.month - df['first_mrr_month'].dt.month)
+    )
 
     df = df[df['months_since'] >= 0]
     df = df[df['months_since'] <= 36]
@@ -602,13 +607,17 @@ def compute_logo_retention_monthly(mrr, customers=None, max_months=36, start_yea
     df = df.merge(anchors, on='customer_id', how='left')
     df = df.dropna(subset=['cohort_month', 'first_mrr_month'])
 
+    # Vectorized month difference
     df['period_num'] = (
-        df['mrr_month'].dt.to_period('M') -
-        df['first_mrr_month'].dt.to_period('M')
-    ).apply(lambda x: x.n)
+        (df['mrr_month'].dt.year - df['first_mrr_month'].dt.year) * 12 +
+        (df['mrr_month'].dt.month - df['first_mrr_month'].dt.month)
+    )
 
-    # Monthly sub-cohort label uses cohort_month (matches sidebar filter source)
-    df['cohort_ym'] = df['cohort_month'].dt.to_period('M').astype(str)
+    # Vectorized YYYY-MM string
+    df['cohort_ym'] = (
+        df['cohort_month'].dt.year.astype(str) + '-' +
+        df['cohort_month'].dt.month.astype(str).str.zfill(2)
+    )
 
     df = df[df['cohort_year'] >= start_year]
     df = df[(df['period_num'] >= 0) & (df['period_num'] <= max_months)]
