@@ -9,7 +9,7 @@ from pathlib import Path
 from data_prep import (
     load_all_data, apply_filters, compute_kpis,
     compute_kpi_table, compute_retention_curve, compute_logo_retention_curve,
-    compute_nrr_cohort_curve_clean,
+    compute_nrr_cohort_curve_clean, compute_logo_retention_monthly,
 )
 from charts import (
     chart_mrr_over_time, chart_arpu_over_time, chart_nrr_over_time,
@@ -171,6 +171,77 @@ def render_text_table(df):
     st.markdown(html, unsafe_allow_html=True)
 
 
+def render_logo_retention_monthly_table(monthly_df, max_months=36):
+    """Render the monthly cohort retention heatmap-style table.
+    Expects DataFrame from compute_logo_retention_monthly with columns:
+    cohort_ym, n_t0, months_avail, then m0..mN as period_num columns."""
+    if monthly_df is None or len(monthly_df) == 0:
+        st.info('No data for the current filter selection.')
+        return
+
+    def color_for_pct(v):
+        if pd.isna(v):
+            return '#fafafa', '#999'
+        if v >= 90:
+            return '#d4edda', '#155724'
+        if v >= 70:
+            return '#e2f0d9', '#2d5e1e'
+        if v >= 50:
+            return '#fff3cd', '#856404'
+        if v >= 30:
+            return '#ffe5b4', '#6e3a06'
+        return '#f8d7da', '#721c24'
+
+    period_cols = [c for c in monthly_df.columns
+                   if c not in ('cohort_ym', 'n_t0', 'months_avail')]
+    period_cols = sorted([int(c) for c in period_cols])
+    period_cols = [p for p in period_cols if p <= max_months]
+
+    html = (
+        '<div style="overflow-x: auto; max-height: 640px; overflow-y: auto; '
+        'border: 1px solid #e5e7eb; border-radius: 6px;">'
+        '<table style="border-collapse: collapse; font-size: 11px; '
+        'font-family: -apple-system, BlinkMacSystemFont, sans-serif; width: max-content;">'
+        '<thead><tr style="background: #34495e; color: white; position: sticky; top: 0; z-index: 3;">'
+        '<th style="padding: 8px 10px; text-align: left; position: sticky; left: 0; '
+        'background: #34495e; z-index: 4;">Cohort</th>'
+        '<th style="padding: 8px 10px; text-align: right; background: #34495e;">N</th>'
+    )
+    for p in period_cols:
+        html += f'<th style="padding: 8px 6px; text-align: right; background: #34495e;">M{p}</th>'
+    html += '</tr></thead><tbody>'
+
+    for _, row in monthly_df.iterrows():
+        cohort_ym = row['cohort_ym']
+        n_t0 = int(row['n_t0']) if pd.notna(row['n_t0']) else 0
+        avail = row['months_avail']
+        is_jan = str(cohort_ym).endswith('-01')
+        top_border = 'border-top: 2px solid #34495e;' if is_jan else ''
+        html += f'<tr style="{top_border}">'
+        html += (f'<td style="padding: 6px 10px; border-bottom: 1px solid #eee; '
+                 f'background: #f8f9fa; font-weight: 600; position: sticky; '
+                 f'left: 0; z-index: 1; {top_border}">{cohort_ym}</td>')
+        html += (f'<td style="padding: 6px 10px; border-bottom: 1px solid #eee; '
+                 f'text-align: right; color: #555;">{n_t0:,}</td>')
+        for p in period_cols:
+            val = row.get(p, pd.NA)
+            if pd.notna(avail) and p > avail:
+                html += (f'<td style="padding: 6px 6px; border-bottom: 1px solid #eee; '
+                         f'text-align: right; color: #ccc; background: #fafafa;">.</td>')
+            elif pd.isna(val):
+                html += (f'<td style="padding: 6px 6px; border-bottom: 1px solid #eee; '
+                         f'text-align: right; color: #ccc; background: #fafafa;">.</td>')
+            else:
+                bg, fg = color_for_pct(float(val))
+                text = f'{float(val):.0f}%'
+                html += (f'<td style="padding: 6px 6px; border-bottom: 1px solid #eee; '
+                         f'text-align: right; background: {bg}; color: {fg};">{text}</td>')
+        html += '</tr>'
+
+    html += '</tbody></table></div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
 # =============================================================================
 # Load data
 # =============================================================================
@@ -281,13 +352,14 @@ st.markdown("<br>", unsafe_allow_html=True)
 # =============================================================================
 # Tabs
 # =============================================================================
-tab_state, tab_depth, tab_country, tab_product, tab_contract, tab_action, tab_notes = st.tabs([
+tab_state, tab_depth, tab_country, tab_product, tab_contract, tab_action, tab_deepdive, tab_notes = st.tabs([
     "📈 State of Business",
     "🔢 Platform Depth",
     "🌍 Country",
     "📦 Product",
     "📅 Contract Length",
     "🎯 Action Plan",
+    "🔬 Cohort Deep Dive",
     "📖 Notes",
 ])
 
@@ -456,7 +528,29 @@ with tab_action:
 
 
 # -----------------------------------------------------------------------------
-# Tab 7 — Notes
+# Tab 7 — Cohort Deep Dive
+# -----------------------------------------------------------------------------
+with tab_deepdive:
+    st.markdown("### Customer Retention by Monthly Acquisition Cohort")
+    st.markdown(
+        "<div class='caption'>Each row is a monthly acquisition cohort. "
+        "Columns show the percentage of cohort customers still active at each "
+        "month-since-acquisition. Right-censored cells (cohort hasn't had time to "
+        "reach that milestone) are blank. Maturity threshold: 80%.</div>",
+        unsafe_allow_html=True
+    )
+    st.caption(
+        "Use this view to spot seasonal patterns, individual underperforming "
+        "cohorts, or drift in retention quality over time. Yearly cohorts in "
+        "other tabs aggregate across these monthly buckets."
+    )
+
+    monthly_df = compute_logo_retention_monthly(mrr_chart, customers, max_months=63)
+    render_logo_retention_monthly_table(monthly_df, max_months=63)
+
+
+# -----------------------------------------------------------------------------
+# Tab 8 — Notes
 # -----------------------------------------------------------------------------
 with tab_notes:
     st.markdown("### KPI Definitions")
