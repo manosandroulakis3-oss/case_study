@@ -313,7 +313,7 @@ with tab_state:
     render_logo_retention_table(mrr_chart, customers)
 
     # NRR cohort curve — stacking-corrected (monthly sub-cohorts averaged within year)
-    ret = compute_nrr_cohort_curve_clean(mrr_chart)
+    ret = compute_nrr_cohort_curve_clean(mrr_chart, customers)
     st.plotly_chart(
         chart_retention_curve(ret, title='NRR (Net Revenue Retention) by acquisition cohort year'),
         use_container_width=True, key='c_retention_overall'
@@ -367,7 +367,7 @@ with tab_country:
     else:
         retention_title = f'NRR by Cohort: {len(selected_countries)} countries selected'
 
-    ret = compute_nrr_cohort_curve_clean(mrr_chart_c)
+    ret = compute_nrr_cohort_curve_clean(mrr_chart_c, customers)
     st.plotly_chart(chart_retention_curve(ret, retention_title),
                     use_container_width=True, key='c_retention_country')
 
