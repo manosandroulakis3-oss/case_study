@@ -58,6 +58,36 @@ def _load_synthetic():
 
 
 # =============================================================================
+# Customer anchor lookup (cached, derived from raw data)
+# Computed once at app startup. Used by all retention functions to avoid
+# repeating the expensive groupby on filtered MRR data.
+# =============================================================================
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_customer_anchors():
+    """Returns a small lookup table (one row per customer) with:
+      customer_id, cohort_month, cohort_year, first_mrr_month
+    Cached as a derivative of load_all_data, so it computes once."""
+    customers, _, mrr = load_all_data()
+
+    # cohort_month from customers table (matches sidebar filter source)
+    cohort_lookup = (customers[['customer_id', 'cohort_month']]
+                     .drop_duplicates('customer_id')
+                     .copy())
+    cohort_lookup['cohort_month'] = pd.to_datetime(cohort_lookup['cohort_month'])
+
+    # first_mrr_month from full MRR (the customer's true cohort start)
+    mrr_dates = mrr[['customer_id', 'mrr_month']].copy()
+    mrr_dates['mrr_month'] = pd.to_datetime(mrr_dates['mrr_month'])
+    first_mrr = (mrr_dates.groupby('customer_id', observed=True)['mrr_month']
+                 .min().rename('first_mrr_month').reset_index())
+
+    anchors = cohort_lookup.merge(first_mrr, on='customer_id', how='outer')
+    anchors['cohort_year'] = anchors['cohort_month'].dt.year
+    return anchors
+
+
+# =============================================================================
 # Filtering
 # =============================================================================
 
@@ -414,28 +444,12 @@ def compute_nrr_cohort_curve_clean(mrr, customers=None, max_months=36,
 
     df['mrr_month'] = pd.to_datetime(df['mrr_month'])
 
-    # Get cohort_year and cohort_month from customers (or from MRR if already present)
-    # cohort_year defines which yearly cohort a customer belongs to (matches sidebar filter)
-    # cohort_month defines the monthly sub-cohort used for stacking-correction
-    if 'cohort_month' not in df.columns:
-        if customers is not None and 'cohort_month' in customers.columns:
-            cohort_lookup = (customers[['customer_id', 'cohort_month']]
-                             .drop_duplicates('customer_id'))
-            df = df.merge(cohort_lookup, on='customer_id', how='left')
-        else:
-            # Fallback: derive from first MRR month
-            first_month = df.groupby('customer_id')['mrr_month'].min().rename('cohort_month')
-            df = df.merge(first_month, on='customer_id', how='left')
-    df = df.dropna(subset=['cohort_month'])
-    df['cohort_month'] = pd.to_datetime(df['cohort_month'])
-
-    if 'cohort_year' not in df.columns:
-        df['cohort_year'] = df['cohort_month'].dt.year
-
-    # Each customer's personal M0 = their first MRR month (for the period axis)
-    first_mrr = (df.groupby('customer_id')['mrr_month']
-                   .min().rename('first_mrr_month'))
-    df = df.merge(first_mrr, on='customer_id')
+    # Use cached customer anchor lookup (cohort_month, cohort_year, first_mrr_month)
+    anchors = get_customer_anchors()
+    df = df.drop(columns=[c for c in ('cohort_month', 'cohort_year', 'first_mrr_month')
+                          if c in df.columns])
+    df = df.merge(anchors, on='customer_id', how='left')
+    df = df.dropna(subset=['cohort_month', 'first_mrr_month'])
 
     df['period_num'] = (
         df['mrr_month'].dt.to_period('M') -
@@ -516,10 +530,12 @@ def compute_logo_retention_curve(mrr, customers=None, group_col=None, group_valu
     df['mrr_month'] = pd.to_datetime(df['mrr_month'])
     data_max_month = df['mrr_month'].max()
 
-    # Each customer's personal M0 = their first MRR month
-    first_mrr = (df.groupby('customer_id')['mrr_month']
-                   .min().rename('first_mrr_month'))
-    df = df.merge(first_mrr, on='customer_id', how='left')
+    # Use cached customer anchor lookup (avoids per-call groupby on filtered MRR)
+    anchors = get_customer_anchors()
+    df = df.drop(columns=[c for c in ('cohort_month', 'cohort_year', 'first_mrr_month')
+                          if c in df.columns])
+    df = df.merge(anchors, on='customer_id', how='left')
+    df = df.dropna(subset=['first_mrr_month'])
 
     df['months_since'] = (
         df['mrr_month'].dt.to_period('M') - df['first_mrr_month'].dt.to_period('M')
@@ -578,27 +594,13 @@ def compute_logo_retention_monthly(mrr, customers=None, max_months=36, start_yea
 
     df['mrr_month'] = pd.to_datetime(df['mrr_month'])
 
-    # Get cohort_month from customers (or from MRR if already present)
-    # Use the same source as the sidebar filter — invoice-based cohort_month
-    if 'cohort_month' not in df.columns:
-        if customers is not None and 'cohort_month' in customers.columns:
-            cohort_lookup = (customers[['customer_id', 'cohort_month']]
-                             .drop_duplicates('customer_id'))
-            df = df.merge(cohort_lookup, on='customer_id', how='left')
-        else:
-            # Fallback: derive from first MRR month
-            first_month = df.groupby('customer_id')['mrr_month'].min().rename('cohort_month')
-            df = df.merge(first_month, on='customer_id', how='left')
-    df = df.dropna(subset=['cohort_month'])
-    df['cohort_month'] = pd.to_datetime(df['cohort_month'])
-
-    if 'cohort_year' not in df.columns:
-        df['cohort_year'] = df['cohort_month'].dt.year
-
-    # Each customer's personal M0 = their first MRR month (period axis only)
-    first_mrr = (df.groupby('customer_id')['mrr_month']
-                   .min().rename('first_mrr_month'))
-    df = df.merge(first_mrr, on='customer_id')
+    # Use cached customer anchor lookup (cohort_month, cohort_year, first_mrr_month)
+    # This avoids the expensive groupby + merge that would otherwise run every call
+    anchors = get_customer_anchors()
+    df = df.drop(columns=[c for c in ('cohort_month', 'cohort_year', 'first_mrr_month')
+                          if c in df.columns])
+    df = df.merge(anchors, on='customer_id', how='left')
+    df = df.dropna(subset=['cohort_month', 'first_mrr_month'])
 
     df['period_num'] = (
         df['mrr_month'].dt.to_period('M') -
@@ -606,7 +608,7 @@ def compute_logo_retention_monthly(mrr, customers=None, max_months=36, start_yea
     ).apply(lambda x: x.n)
 
     # Monthly sub-cohort label uses cohort_month (matches sidebar filter source)
-    df['cohort_ym']   = df['cohort_month'].dt.to_period('M').astype(str)
+    df['cohort_ym'] = df['cohort_month'].dt.to_period('M').astype(str)
 
     df = df[df['cohort_year'] >= start_year]
     df = df[(df['period_num'] >= 0) & (df['period_num'] <= max_months)]
