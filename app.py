@@ -500,41 +500,41 @@ with tab_contract:
 # Tab 6 — Action Plan
 # -----------------------------------------------------------------------------
 with tab_action:
-    st.markdown("### Strategic Summary")
-    st.markdown("Findings and implications, by section.")
+    st.markdown("### Insights and Recommendations")
+    st.markdown("Key findings from the analysis with corresponding recommendations, by section.")
 
     summary = pd.DataFrame([
         ['State of the Business',
          'MRR peaked at €211K in January 2026 and fell €45K in three months. Churned MRR exceeds new MRR in early 2026.',
-         'Total MRR contraction is visible across every grouping dimension and in every market.'],
+         'Treat the contraction as the core priority for the next planning cycle. The trajectory has not self-corrected over four years and is now visible across every grouping dimension.'],
         ['State of the Business',
          'First-year retention sits between 54% and 58% across all four mature cohorts. Revenue retention at the same milestones has declined cohort over cohort.',
-         'The decline in cohort revenue retention is not coming from a falling first-year customer-renewal rate, which is stable. It comes from less revenue per renewing customer.'],
+         'Direct retention efforts at revenue per renewing customer rather than at lifting the headline renewal rate. The renewal rate has been stable since 2021 while revenue retention has fallen cohort over cohort.'],
         ['Platform Depth',
          'Single-product customers (46.5% of the base) renew at 10.7% with €76 in average LTV. Multi-product (3+) customers renew at 43.6% with €274 in average LTV.',
-         'Renewal rate, LTV and NRR at expiry all rise as the number of products purchased increases.'],
+         'Make a second product purchase within the first contract year the primary retention objective. The 3.6x LTV gap between single and multi-product customers is the largest single-step value uplift in the data.'],
         ['Platform Depth',
          'Multi-product cohorts retain above 100% of Month-0 MRR through Month 48. They are the only platform-depth segment whose mature cohorts exceed their starting revenue beyond the first renewal window.',
-         '32,970 customers (46.5% of the base) never purchase a second product. The LTV gap between this group and a multi-product customer is 3.6x.'],
+         'Treat the multi-product cohort as the target retention model for the rest of the base. A working pattern already exists internally.'],
         ['Country',
          'All 12 markets follow nearly identical retention curves. Renewal rates span 21.2% (Poland) to 25.9% (France), a 4.7 percentage point range.',
-         'Customer-value differences across markets sit in revenue per customer rather than in renewal behaviour. Italy, Portugal and France have the highest revenue per customer.'],
+         'Run a single centralised retention programme across all 12 markets. The retention curves are too close to justify country-level differentiation.'],
         ['Product',
          'Shared Hosting contributes €113,554 in average monthly MRR, the largest share of any product group. Its NRR at expiry of 25.7% sits below the levels seen in WHOIS Privacy, Local ccTLD and Other TLDs.',
-         'The product group with the largest MRR contribution shows lower mature-cohort retention than the smaller domain product groups.'],
+         'Treat Shared Hosting as the acquisition front door rather than the retention engine. Build a structured path from Shared Hosting to a domain product within the first contract year.'],
         ['Product',
          'WHOIS Privacy and Local ccTLD show the strongest mature-cohort retention. The 2021 cohort returns above 240% of Month-0 MRR at Month 12 and above 145% at Month 36.',
-         'WHOIS Privacy and Local ccTLD are the only product groups whose mature cohorts exceed Month-0 revenue at Month 36.'],
+         'Make WHOIS Privacy and Local ccTLD the default upsell in the Shared Hosting onboarding flow. They are the only products whose mature cohorts grow above their starting revenue.'],
         ['Contract Length',
          '24-month customers post €194 in average LTV against €135 for 12-month customers, a 43% gap. ARPU is 14% higher.',
-         'The LTV gap between a 12-month and a 24-month customer is €59 per customer.'],
+         'Move 24-month to the default contract option at acquisition. The €59 per-customer LTV gap is a pricing and UX lever, not a product change.'],
         ['Contract Length',
          '24-month contract share at acquisition has fallen from 19.6% in 2021 to 14.2% in 2026.',
-         'The acquisition mix is shifting toward the contract length with the lower customer-value KPIs.'],
+         'Reverse the drift toward shorter contracts in the acquisition flow. The current mix is silently reducing per-cohort LTV.'],
         ['Contract Length',
          '27,954 of 55,850 customers (50%) starting on 12-month contracts are lost at the first renewal. The flow from 12-month into longer contracts at renewal is a small fraction of the total.',
-         'The Sankey shows no material upgrade pipeline at the 12-month renewal point. Customers either repeat their original contract length or do not return.'],
-    ], columns=['Section', 'Finding', 'Implication'])
+         'Treat the 12-month renewal as an active sales touchpoint. Build a structured 24-month upgrade offer and a retention intervention ahead of expiry.'],
+    ], columns=['Section', 'Insight', 'Recommendation'])
 
     render_text_table(summary)
 
