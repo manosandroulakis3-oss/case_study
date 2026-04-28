@@ -659,6 +659,5 @@ The NRR curve in the State of Business and Country tabs shows values above 100% 
 
 When expansion exceeds churn + contraction, NRR exceeds 100%. This data shows it clearly at Month 12. Many customers renew their annual contract *with an upsell* (more domains, hosting upgrades, WHOIS Privacy add-on), so the cohort's total spend in Month 12 is higher than at acquisition.
 
-This is the standard SaaS metric. Public companies like Snowflake (~140%) and Datadog (~130%) report NRR above 100%. It's how investors evaluate whether a business is growing existing accounts.
         """
     )
