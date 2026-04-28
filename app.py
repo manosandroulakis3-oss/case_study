@@ -565,34 +565,85 @@ with tab_deepdive:
 # Tab 8 — Notes
 # -----------------------------------------------------------------------------
 with tab_notes:
-    st.markdown("### KPI Definitions")
     st.markdown(
-        "<div class='caption'>Each KPI shown in the headline strip and segment tables, "
-        "with formula and interpretation.</div>",
+        """
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #2c3e50; line-height: 1.4;">
+
+<h4 style="margin-bottom: 4px;">KPI Framework</h4>
+
+<table style="width:100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed;">
+  <thead>
+    <tr style="background-color: #2c3e50; color: white;">
+      <th style="padding: 6px 8px; text-align: left; font-size: 11px; width: 20%;">KPI</th>
+      <th style="padding: 6px 8px; text-align: left; font-size: 11px;">What it measures</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background-color: #ebf5fb;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong># Customers</strong></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Size of each segment. Context for every other metric.</td>
+    </tr>
+    <tr style="background-color: white;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Avg MRR/month</strong></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Average monthly active contract value across the observation period.</td>
+    </tr>
+    <tr style="background-color: #ebf5fb;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>ARPU</strong></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Revenue per active customer per month. Reflects contract mix quality.</td>
+    </tr>
+    <tr style="background-color: white;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Renewal Rate %</strong></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Share of customers who returned after their first contract. Ranges from 1.5% to 43.6% across segments.</td>
+    </tr>
+    <tr style="background-color: #ebf5fb;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Avg LTV</strong></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Cumulative net revenue per customer across their entire relationship.</td>
+    </tr>
+    <tr style="background-color: white;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>NRR at Expiry %</strong></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Of every €100 at Month 0, how much returned at the natural renewal point. Above 100% means the segment grows from within.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size: 10px; color: #7f8c8d; margin-bottom: 2px;">* ARPU is a rate. LTV is a cumulative total. 60-month customers have the highest LTV (€232) but lowest ARPU (€3.69) because large upfront payments are spread across many months.</p>
+<p style="font-size: 10px; color: #7f8c8d; margin-bottom: 10px;">* NRR at Expiry measures how much revenue returned when a customer reached their natural renewal point. A 2-month buffer is applied either side of the contract span to capture early and late renewals. 120-month contracts show N/A as no contract has reached expiry within the observation window.</p>
+
+<hr style="border: none; border-top: 1px solid #ececec; margin-bottom: 10px;">
+
+<h4 style="margin-bottom: 4px;">Grouping Dimensions</h4>
+
+<table style="width:100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed;">
+  <thead>
+    <tr style="background-color: #2c3e50; color: white;">
+      <th style="padding: 6px 8px; text-align: left; font-size: 11px; width: 25%;">Dimension</th>
+      <th style="padding: 6px 8px; text-align: left; font-size: 11px;">Why it was chosen</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background-color: #ebf5fb;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Platform depth</strong><br><span style="color:#7f8c8d; font-size:10px;">Number of distinct products purchased (1, 2, 3+)</span></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Tests whether customers with more products retain better and generate more lifetime value.</td>
+    </tr>
+    <tr style="background-color: white;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Country</strong><br><span style="color:#7f8c8d; font-size:10px;">European market of acquisition</span></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Tests whether retention needs localisation or whether one programme works across all 12 markets.</td>
+    </tr>
+    <tr style="background-color: #ebf5fb;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Product</strong><br><span style="color:#7f8c8d; font-size:10px;">Product group and subgroup</span></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Identifies which products create the most loyal customers and highest lifetime value.</td>
+    </tr>
+    <tr style="background-color: white;">
+      <td style="padding: 6px 8px; font-size: 11px;"><strong>Contract length</strong><br><span style="color:#7f8c8d; font-size:10px;">Duration of first commitment in months</span></td>
+      <td style="padding: 6px 8px; font-size: 11px;">Determines MRR per customer, renewal frequency and relationship duration. The most structurally controllable dimension.</td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+        """,
         unsafe_allow_html=True
     )
-
-    kpi_defs = pd.DataFrame([
-        ['Customers',
-         'Count of unique customer IDs in the filtered dataset',
-         'How many customers are reflected in the current view. Filtering by product narrows this to customers who bought in that segment.'],
-        ['Avg MRR / Month',
-         'Mean of monthly MRR totals, year-weighted across 2021-2025',
-         'Recurring revenue earning power. Computed as the average of yearly means rather than a flat average to avoid bias from cohort growth.'],
-        ['ARPU',
-         'Average revenue per user per month, year-weighted across 2021-2025',
-         'How much each active customer contributes per month on average. Same year-weighting as Avg MRR.'],
-        ['Renewal Rate',
-         '% of customers who ever repurchased the same product after first month',
-         'Logo-level retention signal: did this customer come back, regardless of spend? Uses the customer_ever_renewed flag built in the data prep.'],
-        ['Avg LTV',
-         'Total revenue ÷ unique customers',
-         'Lifetime value to date. Includes all revenue across full observation window.'],
-        ['NRR at Expiry',
-         'Sum of revenue in renewal window (first_span ± 2 months) ÷ Sum of revenue at Month 0',
-         'Net revenue retention measured at the renewal moment for cohorts 2021-2023 (mature cohorts only). Above 100% = expansion outweighs churn at renewal.'],
-    ], columns=['KPI', 'Formula', 'Interpretation'])
-    render_text_table(kpi_defs)
 
     st.markdown("### Why NRR can go above 100%")
     st.markdown(
