@@ -472,7 +472,8 @@ def compute_nrr_cohort_curve_clean(mrr, customers=None, max_months=36,
         columns={'period_num': 'months_since'})
  
  
- 
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=20)
+def compute_logo_retention_curve(mrr, customers=None, group_col=None, group_value=None):
     """% of cohort customers still active at each month-since-acquisition.
     Bounded at 100%. Each customer counts as 1.
  
